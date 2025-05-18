@@ -1,0 +1,5 @@
+.venv/
+.envrc
+inpi_cache/
+inpi_combined_patents*.csv
+inpi_search_state*.json
