@@ -522,7 +522,7 @@ class INPIPatentScraper:
             except Exception as e:
                 print(f"Error parsing row: {e}")
 
-    def get_patent_details(self, patent_id, search_param='', resumo='', titulo='', max_retries=1):
+    def get_patent_details(self, patent_id, search_param='', resumo='', titulo=''):
         """
         Get the details for a specific patent
 
@@ -538,6 +538,7 @@ class INPIPatentScraper:
         """
         # Check if session is valid
         if not self.check_and_renew_session():
+            print('Session is not authenticated')
             return None
 
         params = {
@@ -549,10 +550,17 @@ class INPIPatentScraper:
         }
 
         try:
-            response = self.session.get(
-                self.base_url,
-                params=params
-            )
+            try:
+                response = self.session.get(
+                    self.base_url,
+                    params=params,
+                    timeout=10
+                )
+            except requests.exceptions.Timeout:
+                print(f"Request timed out for patent {patent_id}, returning partial info")
+                return {
+                    'patent_id': patent_id,
+                }
 
             if response.status_code != 200:
                 print(f"Failed to retrieve patent details: {response.status_code}")
@@ -574,6 +582,9 @@ class INPIPatentScraper:
                 self._debug_response(response, f"detail_{patent_id}")
 
             # Parse the details page
+            parse_detail = self._parse_detail_page(detail_content)
+            if parse_detail == {}:
+                print('Parse detail page returned empty')
             return self._parse_detail_page(detail_content)
 
         except Exception as e:
@@ -899,7 +910,8 @@ class INPIPatentScraper:
 
         # Convert to DataFrame
         df_new = pd.DataFrame(self.detailed_patents)
-        required_columns = ['patent_number','filing_date','patent_id','title','ipc','patent_number_raw','search_param','patent_number_full','filing_date_detail','publication_date','grant_date','applicants','applicants_raw','patent_agent','ipc_codes','abstract','inventors_raw','inventors']
+        required_columns = ['patent_number', 'filing_date', 'patent_id', 'title', 'ipc', 'patent_number_raw', 'search_param', 'patent_number_full', 'filing_date_detail',
+                            'publication_date', 'grant_date', 'applicants', 'applicants_raw', 'patent_agent', 'ipc_codes', 'abstract', 'inventors_raw', 'inventors']
         for column in required_columns:
             if column not in df_new.columns:
                 df_new[column] = None
